@@ -27,9 +27,30 @@ struct HelperFunctionsTests {
         var projectName = deriveProjectName(cwd: cwd)
         #expect(projectName == "My_Project")
 
+        // A leading dot is dropped so the name starts with an alphanumeric, as
+        // required by container's entity-name rule.
         cwd = ".devcontainers"
         projectName = deriveProjectName(cwd: cwd)
-        #expect(projectName == "_devcontainers")
+        #expect(projectName == "devcontainers")
+    }
+
+    @Test("Sanitize project name to satisfy container entity-name rules")
+    func testSanitizeProjectName() throws {
+        // Already valid -> unchanged.
+        #expect(sanitizeProjectName("myapp") == "myapp")
+        #expect(sanitizeProjectName("My-App_1") == "My-App_1")
+        // Spaces and other invalid characters -> '_'.
+        #expect(sanitizeProjectName("My Project") == "My_Project")
+        #expect(sanitizeProjectName("a/b@c") == "a_b_c")
+        // Dots -> '_' (preserves long-standing behavior).
+        #expect(sanitizeProjectName("my.app") == "my_app")
+        // Leading non-alphanumerics are dropped.
+        #expect(sanitizeProjectName(".hidden") == "hidden")
+        #expect(sanitizeProjectName("-dash") == "dash")
+        #expect(sanitizeProjectName("__leading") == "leading")
+        // Nothing usable -> fallback.
+        #expect(sanitizeProjectName("...") == "compose")
+        #expect(sanitizeProjectName("") == "compose")
     }
 
     @Test("Resolve explicit relative paths against base URL")

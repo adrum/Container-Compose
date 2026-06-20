@@ -108,17 +108,20 @@ public struct ComposeProjectOptions: ParsableArguments {
         return try YAMLDecoder().decode(DockerCompose.self, from: expanded)
     }
 
-    /// Project name used to namespace containers, resolved with the same
-    /// precedence as docker compose: the `-p`/`--project-name` flag, then
-    /// `COMPOSE_PROJECT_NAME` (process environment over the .env file), then
-    /// the compose `name:` field (with `${VAR:-default}` interpolation), then
-    /// the sanitized working-directory name.
+    /// Resolves the project name with docker compose's precedence: `-p`, then
+    /// `COMPOSE_PROJECT_NAME`, then the compose `name:`, then the compose file's
+    /// directory name — sanitized in every case.
+    ///
+    /// - Note: Explicit names are sanitized too. The daemon rejects entity names
+    ///   outside `^[A-Za-z0-9][A-Za-z0-9_.-]*$`, so a name like "my project"
+    ///   would otherwise fail `up` at `volume create` or container creation.
     public func projectName(for compose: DockerCompose) -> String {
-        resolveProjectName(
-            flagValue: composeFileOptions.projectName,
-            composeName: compose.name,
-            envVars: loadEnvFile(path: envFilePath),
-            projectDirectory: composeDirectory)
+        sanitizeProjectName(
+            resolveProjectName(
+                flagValue: composeFileOptions.projectName,
+                composeName: compose.name,
+                envVars: loadEnvFile(path: envFilePath),
+                projectDirectory: composeDirectory))
     }
 
     /// Resolves the services the command should act on, in dependency
