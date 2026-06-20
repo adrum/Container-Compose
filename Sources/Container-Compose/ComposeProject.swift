@@ -102,10 +102,17 @@ public struct ComposeProjectOptions: ParsableArguments {
         return try YAMLDecoder().decode(DockerCompose.self, from: dockerComposeString)
     }
 
-    /// Project name used to namespace containers: the compose `name:` field if
-    /// present, otherwise the sanitized working-directory name.
+    /// Resolves the project name used to namespace containers, networks, and
+    /// volumes: the compose `name:` field if present, otherwise the derived
+    /// working-directory name, in both cases passed through
+    /// `sanitizeProjectName`.
+    ///
+    /// - Note: Sanitizing the explicit `name:` as well is intentional. The
+    ///   daemon rejects entity names outside `^[A-Za-z0-9][A-Za-z0-9_.-]*$`,
+    ///   so an unsanitized `name:` like "my project" fails `up` at
+    ///   `volume create` or container creation.
     public func projectName(for compose: DockerCompose) -> String {
-        compose.name ?? deriveProjectName(cwd: cwd)
+        sanitizeProjectName(compose.name ?? deriveProjectName(cwd: cwd))
     }
 
     /// Resolves the services the command should act on, in dependency

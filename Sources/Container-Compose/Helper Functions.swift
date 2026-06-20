@@ -135,15 +135,35 @@ public func resolveVariable(_ value: String, with envVars: [String: String]) -> 
     return resolvedValue
 }
 
-/// Derives a project name from the current working directory. It replaces any '.' characters with
-/// '_' to ensure compatibility with container naming conventions.
+/// Derives a project name from the current working directory's last path
+/// component, sanitized via ``sanitizeProjectName(_:)`` so it's usable as a
+/// container/network/volume name.
 ///
 /// - Parameter cwd: The current working directory path.
 /// - Returns: A sanitized project name suitable for container naming.
 public func deriveProjectName(cwd: String) -> String {
-    // We need to replace '.' with _ because it is not supported in the container name
-    let projectName = URL(fileURLWithPath: cwd).lastPathComponent.replacingOccurrences(of: ".", with: "_")
-    return projectName
+    sanitizeProjectName(URL(fileURLWithPath: cwd).lastPathComponent)
+}
+
+/// Sanitizes a project name so it satisfies `container`'s entity-name rule
+/// (`^[A-Za-z0-9][A-Za-z0-9_.-]*$`), which gates container, network, and
+/// volume names alike.
+///
+/// Characters outside `[A-Za-z0-9_-]` — spaces, slashes, dots, … — become `_`
+/// (preserving the long-standing `.`→`_` behavior), and leading
+/// non-alphanumeric characters are dropped so the name starts with a letter
+/// or digit.
+///
+/// - Returns: A name accepted by the daemon for every entity kind, or
+///   `"compose"` when nothing usable remains (e.g. a name made entirely of
+///   separators).
+public func sanitizeProjectName(_ raw: String) -> String {
+    let allowed = Set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-")
+    var sanitized = String(raw.map { allowed.contains($0) ? $0 : "_" })
+    while let first = sanitized.first, !first.isLetter, !first.isNumber {
+        sanitized.removeFirst()
+    }
+    return sanitized.isEmpty ? "compose" : sanitized
 }
 
 /// Converts Docker Compose port specification into a container run -p format.
