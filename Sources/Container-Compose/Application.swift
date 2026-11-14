@@ -60,6 +60,8 @@ public struct Main: AsyncParsableCommand {
             ComposeExec.self,
             ComposeLogs.self,
             InstallPlugin.self,
+            ComposeRestart.self,
+            ComposeKill.self,
             Version.self
         ])
     
